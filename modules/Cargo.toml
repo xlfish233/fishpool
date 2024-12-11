@@ -1,0 +1,13 @@
+[package]
+name = "modules"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+jsonwebtoken.workspace = true
+serde.workspace = true
+chrono.workspace = true
+uuid = { version = "1.11.0", features = ["v4"] }
+[lints]
+workspace = true

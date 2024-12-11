@@ -1,0 +1,1 @@
+This Project is trying to make a distributed im server fully in rust from zero to hero.
