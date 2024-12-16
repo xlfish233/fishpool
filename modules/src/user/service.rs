@@ -1,8 +1,10 @@
+use super::model::{self};
+use super::request::{self};
 use crate::db::get_db;
 use crate::response::{ApiError, ApiResponse};
 use crate::result::ApiResult;
 use crate::salt::{DefaultSaltGenerator, SaltGenerator};
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
 pub struct Service {}
 
@@ -14,14 +16,13 @@ impl Service {
         }
         false
     }
-    pub async fn create(&self, params: crate::user::req::ReqCreate) -> ApiResult<()> {
+    pub async fn create(&self, params: request::ReqCreate) -> ApiResult<()> {
         let db = get_db().unwrap();
         //check if user exists
-        let user = crate::user::model::Entity::find()
-            .filter(crate::user::model::Column::Username.eq(params.username.clone()))
+        let user = model::Entity::find()
+            .filter(model::Column::Username.eq(params.username.clone()))
             .one(db)
-            .await
-            .map_err(|e| ApiError::ServerError(e.to_string()))?;
+            .await?;
         if user.is_some() {
             return Err(ApiError::ParamsError("用户名已存在".to_string()));
         }
@@ -32,7 +33,7 @@ impl Service {
         let hashed_password = bcrypt::hash(salted_password, bcrypt::DEFAULT_COST).unwrap();
         let now = chrono::Utc::now().timestamp();
 
-        let new_model = crate::user::model::ActiveModel {
+        let new_user = model::ActiveModel {
             username: Set(params.username),
             password: Set(hashed_password),
             salt: Set(salt),
@@ -41,7 +42,35 @@ impl Service {
             updated_at: Set(now),
             ..Default::default()
         };
+        //save the new user
+        new_user.save(db).await?;
 
+        Ok(ApiResponse::success())
+    }
+    pub async fn login(&self, params: request::ReqLogin) -> ApiResult<()> {
+        let db = get_db().unwrap();
+        let user = model::Entity::find()
+            .filter(model::Column::Username.eq(params.username.clone()))
+            .one(db)
+            .await?;
+        if user.is_none() {
+            return Err(ApiError::ParamsError("用户名不存在".to_string()));
+        }
+        let user = user.unwrap();
+        let salted_password = format!("{}{}", user.salt, params.password);
+        if !bcrypt::verify(salted_password, &*user.password).unwrap() {
+            return Err(ApiError::ParamsError("密码错误".to_string()));
+        }
+        //update last login time
+        let now = chrono::Utc::now().timestamp();
+        let update_user = model::ActiveModel {
+            last_login_at: Set(now),
+            ..Default::default()
+        };
+        update_user.update(db).await?;
+
+        //TODO RETURN TOKEN TO USER.
+        //TODO SINGLE ACCOUNT SESSION.
         Ok(ApiResponse::success())
     }
 }

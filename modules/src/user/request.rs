@@ -9,6 +9,14 @@ pub struct ReqCreate {
     pub password: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct ReqLogin {
+    #[validate(length(min = 1, max = 255, message = "用户名必填且长度不能超过255个字符"))]
+    pub username: String,
+    #[validate(length(min = 1, max = 255, message = "密码必填且长度不能超过255个字符"))]
+    pub password: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::ReqCreate;

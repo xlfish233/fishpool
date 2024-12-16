@@ -2,6 +2,7 @@ use crate::result::ApiResult;
 
 use salvo::prelude::*;
 use salvo::Writer;
+use sea_orm::DbErr;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -9,6 +10,7 @@ use tracing::error;
 pub enum ApiError {
     ParamsError(String),
     ServerError(String),
+
 }
 
 impl From<salvo::http::ParseError> for ApiError {
@@ -110,4 +112,9 @@ where
     }
 }
 
-//
+impl From<DbErr> for ApiError {
+    fn from(e: DbErr) -> Self {
+        error!("{:?}", e);
+        ApiError::ServerError(e.to_string())
+    }
+}
