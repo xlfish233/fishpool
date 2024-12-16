@@ -1,14 +1,13 @@
-use crate::result::ApiResult;
-use crate::user::req::ReqCreate;
+use crate::response::ApiResponse;
 use salvo::prelude::*;
 
+// #[handler]
+// pub async fn create(req: &mut Request) -> ApiResult<()> {
+//     let params = req.parse_queries::<ReqCreate>()?;
+//     Ok(ApiResponse::msg(0, "create".parse().unwrap()))
+// }
+
 #[handler]
-pub async fn create(req: &mut Request) -> ApiResult<()> {
-    match req.parse_queries::<ReqCreate>() {
-        Ok(params) => {
-            tracing::info!("params: {:?}", params);
-            ApiResult::msg("create")
-        }
-        Err(e) => e.into(),
-    }
+pub async fn asdf() -> impl Writer {
+    ApiResponse::<()>::msg(0, "create".parse().unwrap())
 }

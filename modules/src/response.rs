@@ -1,12 +1,14 @@
 use crate::result::ApiResult;
-use salvo::prelude::*;
-use serde::{Deserialize, Serialize};
 
+use salvo::prelude::*;
 use salvo::Writer;
+use serde::{Deserialize, Serialize};
+use tracing::error;
 
 #[derive(Serialize, Deserialize)]
 pub enum ApiError {
     ParamsError(String),
+    ServerError(String),
 }
 
 impl From<salvo::http::ParseError> for ApiError {
@@ -22,30 +24,22 @@ impl Into<ApiError> for validator::ValidationErrors {
     }
 }
 
-impl<M> Into<ApiResult<M>> for salvo::http::ParseError
-where
-    M: Serialize + Send + Writer,
-{
-    fn into(self) -> ApiResult<M> {
-        ApiResult::Err(ApiError::ParamsError(self.to_string()))
-    }
-}
-
-impl<M> Into<ApiResult<M>> for validator::ValidationErrors
-where
-    M: Serialize + Send + Writer,
-{
-    fn into(self) -> ApiResult<M> {
-        ApiResult::Err(ApiError::ParamsError(self.to_string()))
-    }
-}
-
 #[async_trait]
 impl Writer for ApiError {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         match self {
-            _ => {
-                res.render(Json(self));
+            ApiError::ParamsError(msg) => {
+                error!("ApiError::ParamsError: {}", msg);
+
+                res.render(Json(ApiResponse::<()>::msg(10000, msg)));
+            }
+            ApiError::ServerError(msg) => {
+                error!("ApiError::ServerError: {}", msg);
+
+                res.render(Json(ApiResponse::<()>::msg(
+                    50000,
+                    "Service internal error".into(),
+                )));
             }
         }
     }
@@ -66,7 +60,7 @@ where
     D: Serialize + Writer + Send,
 {
     fn from(res: ApiResponse<D>) -> Self {
-        ApiResult::Ok(res)
+        Ok(res)
     }
 }
 
@@ -84,6 +78,13 @@ where
             data: None,
         }
     }
+    pub fn success() -> Self {
+        ApiResponse {
+            code: 0,
+            msg: "success".to_string(),
+            data: None,
+        }
+    }
 }
 
 impl<T> Into<ApiResponse<T>> for ApiError
@@ -92,9 +93,21 @@ where
 {
     fn into(self) -> ApiResponse<T> {
         ApiResponse {
-         code: 0,
+            code: 0,
             msg: serde_json::to_string(&self).unwrap(),
             data: None,
         }
     }
 }
+
+#[async_trait]
+impl<T> Writer for ApiResponse<T>
+where
+    T: Serialize + Send,
+{
+    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.render(Json(self));
+    }
+}
+
+//

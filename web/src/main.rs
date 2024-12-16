@@ -1,3 +1,7 @@
-fn main() {
-    println!("Hello, world!");
+use modules::db;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    db::init().await?;
+    Ok(())
 }
