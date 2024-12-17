@@ -1,9 +1,11 @@
 use super::model::{self};
 use super::request::{self};
+use crate::crypto::{DefaultSaltGenerator, SaltGenerator};
 use crate::db::get_db;
+use crate::jwt::JWTClaims;
 use crate::response::{ApiError, ApiResponse};
 use crate::result::ApiResult;
-use crate::salt::{DefaultSaltGenerator, SaltGenerator};
+use crate::user::response::RespLogin;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
 pub struct Service {}
@@ -17,8 +19,7 @@ impl Service {
         false
     }
     pub async fn create(&self, params: request::ReqCreate) -> ApiResult<()> {
-        let db = get_db().unwrap();
-        //check if user exists
+        let db = get_db()?;
         let user = model::Entity::find()
             .filter(model::Column::Username.eq(params.username.clone()))
             .one(db)
@@ -26,29 +27,24 @@ impl Service {
         if user.is_some() {
             return Err(ApiError::ParamsError("用户名已存在".to_string()));
         }
-        let salt = DefaultSaltGenerator::gen_salt();
-        // concat salt and password
-        let salted_password = format!("{}{}", salt, params.password);
-        // hash password
-        let hashed_password = bcrypt::hash(salted_password, bcrypt::DEFAULT_COST).unwrap();
+        let (salt, hash) = DefaultSaltGenerator::gen_salt_pair(&params.password);
         let now = chrono::Utc::now().timestamp();
 
         let new_user = model::ActiveModel {
             username: Set(params.username),
-            password: Set(hashed_password),
+            password_hash: Set(hash),
             salt: Set(salt),
             last_login_at: Set(now),
             created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
         };
-        //save the new user
         new_user.save(db).await?;
 
         Ok(ApiResponse::success())
     }
-    pub async fn login(&self, params: request::ReqLogin) -> ApiResult<()> {
-        let db = get_db().unwrap();
+    pub async fn login( params: request::ReqLogin) -> ApiResult<RespLogin> {
+        let db = get_db()?;
         let user = model::Entity::find()
             .filter(model::Column::Username.eq(params.username.clone()))
             .one(db)
@@ -57,8 +53,7 @@ impl Service {
             return Err(ApiError::ParamsError("用户名不存在".to_string()));
         }
         let user = user.unwrap();
-        let salted_password = format!("{}{}", user.salt, params.password);
-        if !bcrypt::verify(salted_password, &*user.password).unwrap() {
+        if !DefaultSaltGenerator::verify(&user.salt, &params.password, &user.password_hash) {
             return Err(ApiError::ParamsError("密码错误".to_string()));
         }
         //update last login time
@@ -68,9 +63,12 @@ impl Service {
             ..Default::default()
         };
         update_user.update(db).await?;
-
-        //TODO RETURN TOKEN TO USER.
-        //TODO SINGLE ACCOUNT SESSION.
-        Ok(ApiResponse::success())
+        let token = JWTClaims::new(user.id, 1);
+        let token = token.get_token()?;
+        Ok(ApiResponse::new(0, "登录成功".to_string(), Some(RespLogin {
+            token,
+            session_id: uuid::Uuid::new_v4().to_string(),
+        })))
     }
 }
+

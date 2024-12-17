@@ -7,6 +7,6 @@ edition = "2021"
 modules = { path = "../modules" }
 tokio = "1.42.0"
 anyhow = "1.0.94"
-
+salvo.workspace = true
 [lints]
 workspace = true

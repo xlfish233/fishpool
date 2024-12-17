@@ -118,3 +118,9 @@ impl From<DbErr> for ApiError {
         ApiError::ServerError(e.to_string())
     }
 }
+impl From<anyhow::Error> for ApiError {
+    fn from(e: anyhow::Error) -> Self {
+        error!("{:?}", e);
+        ApiError::ServerError(e.to_string())
+    }
+}

@@ -8,7 +8,7 @@ pub struct JWTClaims {
     sub: String,
     iat: i64,
     session_id: String,
-    uid: i64,
+    uid: u64,
     platform: i8,
 }
 static JWT_ALGORITHM: &str = "HS256";
@@ -20,7 +20,7 @@ static JWT_SECRET_KEY: &str = "FISH_POOL_DEFAULT_SECRET_KEY";
 static JWT_TOKEN_LAST_TIME: i64 = 60 * 60; //1 hour
 
 impl JWTClaims {
-    pub fn new(uid: i64, platform: i8) -> Self {
+    pub fn new(uid: u64, platform: i8) -> Self {
         let now = chrono::Local::now();
         let exp = now.timestamp() + JWT_TOKEN_LAST_TIME;
         Self {
@@ -33,7 +33,7 @@ impl JWTClaims {
             platform,
         }
     }
-    pub fn new_with_time(uid: i64, platform: i8, now_timestamp: i64) -> Self {
+    pub fn new_with_time(uid: u64, platform: i8, now_timestamp: i64) -> Self {
         let exp = now_timestamp + JWT_TOKEN_LAST_TIME;
         Self {
             iss: JWT_ISS.to_string(),

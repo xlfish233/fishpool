@@ -6,7 +6,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: u64,
     pub username: String,
-    pub password: String,
+    pub password_hash: String,
     pub salt: String,
     pub last_login_at: i64,
     pub created_at: i64,
@@ -14,8 +14,6 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-
-}
+pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}

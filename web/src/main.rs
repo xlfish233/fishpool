@@ -1,8 +1,19 @@
+mod route;
+
+
 use anyhow::Result;
-use modules::db;
+
+use salvo::prelude::*;
+use tokio::net::TcpListener;
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    //TODO GET CONFIG.
-    db::init().await;
+    let addr = "0.0.0.0:8080";
+    let listener = TcpListener::bind(addr).await?;
+    let acceptor = salvo::conn::tcp::TcpAcceptor::try_from(listener)?;
+    let route = route::routes();
+    let service = Service::new(route);
+    Server::new(acceptor).serve(service).await;
+
     Ok(())
 }
