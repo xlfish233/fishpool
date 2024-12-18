@@ -17,8 +17,6 @@ pub struct ReqLogin {
     pub password: String,
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::ReqCreate;

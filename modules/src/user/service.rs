@@ -18,7 +18,7 @@ impl Service {
         }
         false
     }
-    pub async fn create(&self, params: request::ReqCreate) -> ApiResult<()> {
+    pub async fn create(params: request::ReqCreate) -> ApiResult<()> {
         let db = get_db()?;
         let user = model::Entity::find()
             .filter(model::Column::Username.eq(params.username.clone()))
@@ -43,7 +43,7 @@ impl Service {
 
         Ok(ApiResponse::success())
     }
-    pub async fn login( params: request::ReqLogin) -> ApiResult<RespLogin> {
+    pub async fn login(params: request::ReqLogin) -> ApiResult<RespLogin> {
         let db = get_db()?;
         let user = model::Entity::find()
             .filter(model::Column::Username.eq(params.username.clone()))
@@ -65,10 +65,13 @@ impl Service {
         update_user.update(db).await?;
         let token = JWTClaims::new(user.id, 1);
         let token = token.get_token()?;
-        Ok(ApiResponse::new(0, "登录成功".to_string(), Some(RespLogin {
-            token,
-            session_id: uuid::Uuid::new_v4().to_string(),
-        })))
+        Ok(ApiResponse::new(
+            0,
+            "登录成功".to_string(),
+            Some(RespLogin {
+                token,
+                session_id: uuid::Uuid::new_v4().to_string(),
+            }),
+        ))
     }
 }
-

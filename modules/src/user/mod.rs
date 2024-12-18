@@ -1,5 +1,5 @@
 pub mod handler;
+pub mod model;
 pub mod request;
 pub mod response;
 pub mod service;
-pub mod model;

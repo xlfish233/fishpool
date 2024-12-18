@@ -1,6 +1,5 @@
 mod route;
 
-
 use anyhow::Result;
 
 use salvo::prelude::*;

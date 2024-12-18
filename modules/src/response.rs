@@ -10,7 +10,6 @@ use tracing::error;
 pub enum ApiError {
     ParamsError(String),
     ServerError(String),
-
 }
 
 impl From<salvo::http::ParseError> for ApiError {
@@ -20,9 +19,9 @@ impl From<salvo::http::ParseError> for ApiError {
     }
 }
 
-impl Into<ApiError> for validator::ValidationErrors {
-    fn into(self) -> ApiError {
-        ApiError::ParamsError(self.to_string())
+impl From<validator::ValidationErrors> for ApiError {
+    fn from(val: validator::ValidationErrors) -> Self {
+        ApiError::ParamsError(val.to_string())
     }
 }
 
@@ -89,14 +88,14 @@ where
     }
 }
 
-impl<T> Into<ApiResponse<T>> for ApiError
+impl<T> From<ApiError> for ApiResponse<T>
 where
     T: Serialize + Send,
 {
-    fn into(self) -> ApiResponse<T> {
+    fn from(val: ApiError) -> Self {
         ApiResponse {
             code: 0,
-            msg: serde_json::to_string(&self).unwrap(),
+            msg: serde_json::to_string(&val).unwrap(),
             data: None,
         }
     }

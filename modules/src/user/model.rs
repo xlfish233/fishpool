@@ -11,6 +11,7 @@ pub struct Model {
     pub last_login_at: i64,
     pub created_at: i64,
     pub updated_at: i64,
+    pub deleted_at: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
