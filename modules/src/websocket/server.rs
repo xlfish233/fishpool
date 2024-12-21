@@ -31,7 +31,7 @@ impl WsServer {
     }
     async fn kick_by_id(&self, uid: u64) -> Result<()> {
         let mut cli = self.clients.get_mut(&uid).unwrap();
-        cli.close();
+        cli.close().await;
         self.clients.remove(&uid);
         Ok(())
     }

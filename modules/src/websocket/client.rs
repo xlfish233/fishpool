@@ -28,14 +28,10 @@ impl WsClient {
         if let Some(msg) = self.inner.next().await {
             match msg {
                 Ok(msg) => {
-                    match msg {
-                       text => {
-                           let id = text.to_str().unwrap().parse::<u64>().unwrap();
-                           self.id = Some(id);
-                           self.disconnect_ch = Some(oneshot::channel().0);
-                           self.stop_ch = Some(oneshot::channel().0);
-                       }
-                    }
+                    let id = msg.to_str().unwrap().parse::<u64>().unwrap();
+                    self.id = Some(id);
+                    self.disconnect_ch = Some(oneshot::channel().0);
+                    self.stop_ch = Some(oneshot::channel().0);
                 }
                 Err(e) => {
                     println!("Error: {:?}", e);
@@ -45,7 +41,6 @@ impl WsClient {
         if self.id.is_none() {
             self.disconnect_ch.take().unwrap().send(()).unwrap();
         }
-        return;
     }
     pub fn verified(&self) -> bool {
         self.id.is_some()
