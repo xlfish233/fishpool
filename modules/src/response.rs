@@ -1,7 +1,7 @@
 use crate::result::ApiResult;
 
-use salvo::prelude::*;
 use salvo::Writer;
+use salvo::prelude::*;
 use sea_orm::DbErr;
 use serde::{Deserialize, Serialize};
 use tracing::error;

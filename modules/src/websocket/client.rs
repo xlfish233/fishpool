@@ -3,23 +3,25 @@ use futures_util::StreamExt;
 use salvo::websocket::Message;
 use salvo::websocket::WebSocket;
 
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc::Sender, oneshot};
 
 pub struct WsClient {
     inner: WebSocket,
+    cid: u64,
     id: Option<u64>,
     //channel to tell owner this client is disconnected
-    disconnect_ch: Option<oneshot::Sender<()>>,
+    disconnect_ch: Option<Sender<u64>>,
     //channel to stop listen task.
     stop_ch: Option<oneshot::Sender<()>>,
 }
 
 impl WsClient {
-    pub fn new(inner: WebSocket) -> Self {
+    pub fn new(inner: WebSocket, disconnect_tx: Sender<u64>, cid: u64) -> Self {
         Self {
+            cid,
             inner,
             id: None,
-            disconnect_ch: None,
+            disconnect_ch: Some(disconnect_tx),
             stop_ch: None,
         }
     }
@@ -30,8 +32,6 @@ impl WsClient {
                 Ok(msg) => {
                     let id = msg.to_str().unwrap().parse::<u64>().unwrap();
                     self.id = Some(id);
-                    self.disconnect_ch = Some(oneshot::channel().0);
-                    self.stop_ch = Some(oneshot::channel().0);
                 }
                 Err(e) => {
                     println!("Error: {:?}", e);
@@ -39,7 +39,11 @@ impl WsClient {
             }
         }
         if self.id.is_none() {
-            self.disconnect_ch.take().unwrap().send(()).unwrap();
+            //send id to disconnect channel
+            if let Some(tx) = self.disconnect_ch.take() {
+                tx.send(self.cid).await.unwrap();
+            }
+            return;
         }
     }
     pub fn verified(&self) -> bool {
