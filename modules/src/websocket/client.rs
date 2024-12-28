@@ -1,59 +1,83 @@
+use super::Event;
 use anyhow::Result;
-use futures_util::StreamExt;
-use salvo::websocket::Message;
-use salvo::websocket::WebSocket;
-
-use tokio::sync::{mpsc::Sender, oneshot};
-
+use futures_util::SinkExt;
+use salvo::websocket::{Message, WebSocket};
+use tokio::sync::mpsc::Sender;
+#[derive(Debug)]
 pub struct WsClient {
-    inner: WebSocket,
+    sock: WebSocket,
     cid: u64,
-    id: Option<u64>,
-    //channel to tell owner this client is disconnected
-    disconnect_ch: Option<Sender<u64>>,
-    //channel to stop listen task.
-    stop_ch: Option<oneshot::Sender<()>>,
+    user_id: Option<u64>,
+    svr_event_tx: Sender<Event>,
 }
 
 impl WsClient {
-    pub fn new(inner: WebSocket, disconnect_tx: Sender<u64>, cid: u64) -> Self {
+    pub fn new(inner: WebSocket, svr_event_tx: Sender<Event>, cid: u64) -> Self {
         Self {
             cid,
-            inner,
-            id: None,
-            disconnect_ch: Some(disconnect_tx),
-            stop_ch: None,
+            sock: inner,
+            user_id: None,
+            svr_event_tx,
         }
     }
-    pub async fn start_listen(&mut self) {
-        // First message is always message from client using token/session to identify client.
-        if let Some(msg) = self.inner.next().await {
-            match msg {
-                Ok(msg) => {
-                    let id = msg.to_str().unwrap().parse::<u64>().unwrap();
-                    self.id = Some(id);
-                }
-                Err(e) => {
-                    println!("Error: {:?}", e);
-                }
-            }
-        }
-        if self.id.is_none() {
-            //send id to disconnect channel
-            if let Some(tx) = self.disconnect_ch.take() {
-                tx.send(self.cid).await.unwrap();
-            }
-            return;
-        }
-    }
-    pub fn verified(&self) -> bool {
-        self.id.is_some()
-    }
-    pub async fn send(&mut self, msg: Message) -> Result<()> {
-        self.inner.send(msg).await?;
+
+    // pub async fn start_listen(self, mut msg_rx: Receiver<Message>) {
+    //
+    //
+    //     let send_task = tokio::spawn(async move {
+    //         while let Some(msg) = msg_rx.recv().await {
+    //             if let Err(e) = ws_write.send(msg).await {
+    //                 error!("发送消息错误: {:?}", e);
+    //                 break;
+    //             }
+    //         }
+    //     });
+    //
+    //     let receive_task = tokio::spawn(async move {
+    //         while let Some(msg) = ws_read.next().await {
+    //             match msg {
+    //                 Ok(msg) => {
+    //                     if msg.is_close() {
+    //                         break;
+    //                     }
+    //                     // TODO: 处理消息
+    //                 }
+    //                 Err(e) => {
+    //                     error!("接收消息错误: {:?}", e);
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     });
+    //
+    //     tokio::select! {
+    //         _ = send_task => {},
+    //         _ = receive_task => {},
+    //     }
+    //
+    //     if let Some(tx) = &self.disconnect_ch {
+    //         let _ = tx.send(self.cid).await;
+    //     }
+    // }
+
+    async fn handle_message(&self, _msg: Message) -> Result<()> {
+        // TODO: 实现消息处理逻辑
         Ok(())
     }
+
+    pub fn verified(&self) -> bool {
+        self.user_id.is_some()
+    }
+
     pub async fn close(&mut self) {
-        //
+        self.svr_event_tx
+            .send(Event::Disconnect(self.cid))
+            .await
+            .map(|_| tracing::info!("client disconnect"))
+            .ok();
+    }
+
+    pub fn cid(&self) -> u64 {
+        self.cid
     }
 }
