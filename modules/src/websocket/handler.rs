@@ -1,23 +1,26 @@
+use super::server::{Event, WS_SERVICE_SENDER};
+
 use salvo::http::StatusError;
 use salvo::prelude::*;
+use serde_json::json;
 
 #[handler]
-async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
-    WebSocketUpgrade::new()
-        .upgrade(req, res, |mut ws| async move {
-            while let Some(msg) = ws.recv().await {
-                let msg = if let Ok(msg) = msg {
-                    msg
-                } else {
-                    // client disconnected
-                    return;
-                };
-
-                if ws.send(msg).await.is_err() {
-                    // client disconnected
-                    return;
-                }
-            }
+pub async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
+    let ws_upgrade = WebSocketUpgrade::new(); // Bind the temporary value to a variable
+    let ws = ws_upgrade
+        .upgrade(req, res, |ws| async move {
+            WS_SERVICE_SENDER.send(Event::Upgrade(ws)).await.ok();
         })
-        .await
+        .await;
+    if let Err(e) = ws {
+        tracing::error!("websocket upgrade error: {:?}", e);
+        res.render(Json(json!({
+            "code": 500,
+            "msg": "websocket upgrade error",
+            "data": e.to_string()
+        })));
+        return Ok(());
+    }
+
+    Ok(())
 }

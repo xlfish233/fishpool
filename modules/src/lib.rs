@@ -7,4 +7,4 @@ pub mod db;
 mod response;
 mod result;
 
-mod websocket;
+pub mod websocket;
