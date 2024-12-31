@@ -8,7 +8,7 @@ pub struct JWTClaims {
     sub: String,
     iat: i64,
     session_id: String,
-    uid: u64,
+    pub(crate) uid: u64,
     platform: i8,
 }
 static JWT_ALGORITHM: &str = "HS256";

@@ -39,15 +39,10 @@ impl WsService {
         task::spawn(async move {
             client.serve().await;
         });
-
-        // let mut client = WsClient::new(ws, self.event_tx.clone(), cid);
-        // task::spawn(async move {
-        //     client.serve().await;
-        // });
     }
 
     async fn on_disconnect(&mut self, uid: u64) {
-        if let Some(_) = self.cli_txs.remove(&uid) {}
+        self.cli_txs.remove(&uid);
     }
 
     fn new() -> Self {
@@ -78,13 +73,10 @@ impl WsService {
         }
     }
     async fn on_message(&mut self, uid: u64, msg: Message) {
-        if let Some(tx) = self.cli_txs.get_mut(&uid) {
-            //TODO HANDLE THE MESSAGE PROXY TO BACKEND
-        }
+        // Proxy to backend.
     }
     async fn on_client_error(&mut self, uid: u64, e: anyhow::Error) {
-        // TODO: 处理错误
-        if let Some(tx) = self.cli_txs.get_mut(&uid) {}
-        tracing::error!("client error: {:?}", e);
+        // Now only log the error .future may handle it
+        tracing::error!("Client {} error: {}", uid, e);
     }
 }
