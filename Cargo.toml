@@ -8,7 +8,7 @@ members = ["modules", "web"]
 unsafe-code = "forbid"
 
 [workspace.dependencies]
-salvo = { version = "0.74.*", features = ["session", "websocket"] }
+salvo = { version = "0.74.*", features = ["session", "websocket","serve-static"] }
 validator = { version = "0.19.*", features = ["derive"] }
 anyhow = "1.0.*"
 jsonwebtoken = "9.3.*"
