@@ -3,7 +3,6 @@ use super::server::{Event, WS_SERVICE_SENDER};
 use salvo::http::StatusError;
 use salvo::prelude::*;
 use serde_json::json;
-
 #[handler]
 pub async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     let ws_upgrade = WebSocketUpgrade::new(); // Bind the temporary value to a variable
@@ -24,3 +23,4 @@ pub async fn connect(req: &mut Request, res: &mut Response) -> Result<(), Status
 
     Ok(())
 }
+
