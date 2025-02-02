@@ -33,6 +33,7 @@ impl JWTClaims {
             platform,
         }
     }
+    #[allow(dead_code)]
     pub fn new_with_time(uid: u64, platform: i8, now_timestamp: i64) -> Self {
         let exp = now_timestamp + JWT_TOKEN_LAST_TIME;
         Self {

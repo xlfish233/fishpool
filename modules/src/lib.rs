@@ -7,5 +7,5 @@ pub mod db;
 mod response;
 mod result;
 
-mod static_files;
+pub mod static_files;
 pub mod websocket;

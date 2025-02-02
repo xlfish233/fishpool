@@ -18,10 +18,10 @@ pub static WS_SERVICE_SENDER: LazyLock<Sender<Event>> = LazyLock::new(|| {
 });
 #[async_trait]
 pub trait WsEventHandler: Send + Sync {
-    async fn handle_upgraded_ws(&self, ws: WebSocket);
-    async fn handle_message(&self, client_id: u64, msg: Message);
-    async fn handle_disconnect(&self, client_id: u64);
-    async fn handle_client_error(&self, client_id: u64, err: Error);
+    async fn handle_upgraded_ws(&self, cid: u64, svr_tx: Sender<Event>);
+    async fn handle_message(&self, client_id: u64, msg: Message, svr_tx: Sender<Event>);
+    async fn handle_disconnect(&self, client_id: u64, svr_tx: Sender<Event>);
+    async fn handle_client_error(&self, client_id: u64, err: Error, svr_tx: Sender<Event>);
     fn new() -> Self
     where
         Self: Sized;
@@ -35,7 +35,7 @@ where
     cli_txs: DashMap<u64, Sender<Command>>,
     event_rx: Receiver<Event>,
     event_tx: Sender<Event>,
-    handler: H,
+    ext_handler: H,
 }
 
 pub enum Event {
@@ -46,7 +46,7 @@ pub enum Event {
 }
 
 impl<H: WsEventHandler> WsService<H> {
-    fn on_upgraded(&mut self, ws: WebSocket) {
+    fn on_upgraded(&mut self, ws: WebSocket)->u64 {
         let cid = self.cid;
         self.cid += 1;
         let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1024);
@@ -55,6 +55,7 @@ impl<H: WsEventHandler> WsService<H> {
         task::spawn(async move {
             client.serve().await;
         });
+        cid
     }
 
     async fn on_disconnect(&mut self, uid: u64) {
@@ -68,26 +69,36 @@ impl<H: WsEventHandler> WsService<H> {
             cli_txs: DashMap::new(),
             event_rx: disconnect_rx,
             event_tx: disconnect_tx,
-            handler: H::new(),
+            ext_handler: H::new(),
         }
     }
+
     async fn serve(&mut self) {
         while let Some(e) = self.event_rx.recv().await {
             match e {
-                Event::Upgrade(ws) => {
 
-                    self.handler.handle_upgraded_ws(ws).await;
+                Event::Upgrade(ws) => {
+                    let cid = self.on_upgraded(ws);
+                    self.ext_handler
+                        .handle_upgraded_ws(cid, self.event_tx.clone())
+                        .await;
                 }
                 Event::Disconnect(uid) => {
-                    self.cli_txs.remove(&uid);
-                    self.handler.handle_disconnect(uid).await;
+                    self.on_disconnect(uid).await;
+                    self.ext_handler
+                        .handle_disconnect(uid, self.event_tx.clone())
+                        .await;
                 }
 
                 Event::Message(uid, msg) => {
-                    self.handler.handle_message(uid, msg).await;
+                    self.ext_handler
+                        .handle_message(uid, msg, self.event_tx.clone())
+                        .await;
                 }
                 Event::ClientError(uid, e) => {
-                    self.handler.handle_client_error(uid, e).await;
+                    self.ext_handler
+                        .handle_client_error(uid, e, self.event_tx.clone())
+                        .await;
                 }
             }
         }

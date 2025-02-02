@@ -11,6 +11,7 @@ async fn main() -> Result<()> {
     let mut route = Router::new();
     route = route.push(modules::user::router::routes());
     route = route.push(modules::websocket::router::routes());
+    route = route.push(modules::static_files::router::routes());
     let service = Service::new(route);
     Server::new(acceptor).serve(service).await;
 

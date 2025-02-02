@@ -1,7 +1,9 @@
 use super::server::Event;
+use tracing::debug;
 
 use crate::jwt::JWTClaims;
 use anyhow::{Context, Result};
+use futures_util::StreamExt;
 use salvo::websocket::{Message, WebSocket};
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -23,7 +25,6 @@ pub enum Command {
 pub enum AuthenticateState {
     Wait,
     Authenticated,
-    Failed,
 }
 
 impl WsClient {
@@ -46,7 +47,7 @@ impl WsClient {
         match self.state {
             AuthenticateState::Wait => self.do_auth(msg).is_ok(),
             AuthenticateState::Authenticated => true,
-            AuthenticateState::Failed => false,
+
         }
     }
 
@@ -60,6 +61,16 @@ impl WsClient {
     }
 
     pub async fn serve(&mut self) {
+        if let Some(Ok(msg)) = self.sock.next().await {
+            if !self.check_authed(&msg).await {
+                self.close().await;
+                return;
+            }
+        } else {
+            debug!("client {} can't get first message", self.cid);
+            self.close().await;
+        }
+
         loop {
             select! {
                 msg = self.sock.recv() => {
@@ -96,12 +107,7 @@ impl WsClient {
                 }
             }
         }
-        //Tell the server that this client has disconnected
-        self.svr_event_tx
-            .send(Event::Disconnect(self.cid))
-            .await
-            .map(|_| tracing::info!("client disconnect"))
-            .ok();
+        self.close().await;
     }
 
     pub fn verified(&self) -> bool {
